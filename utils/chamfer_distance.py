@@ -46,8 +46,7 @@ def batch_edt(img, block=1024):
 def batch_chamfer_distance(gt, pred, block=1024, return_more=False):
     t = batch_chamfer_distance_t(gt, pred, block=block)
     p = batch_chamfer_distance_p(gt, pred, block=block)
-    cd = (t + p) / 2
-    return cd
+    return (t + p) / 2
 def batch_chamfer_distance_t(gt, pred, block=1024, return_more=False):
     #pdb.set_trace()
     assert gt.device==pred.device and gt.shape==pred.shape
@@ -167,16 +166,14 @@ def rgb2sketch(img, black_threshold):
     return torch.tensor(img)
 def rgb2gray(rgb):
     r, g, b = rgb[:,:,0], rgb[:,:,1], rgb[:,:,2]
-    gray = 0.2989 * r + 0.5870 * g + 0.1140 * b
-
-    return gray
+    return 0.2989 * r + 0.5870 * g + 0.1140 * b
 
 def cd_score(img1, img2):
 
 
     img1 = rgb2gray(img1.astype(float))
     img2 = rgb2gray(img2.astype(float))
-    
+
     img1_sketch = rgb2sketch(img1, black_threshold)
     img2_sketch = rgb2sketch(img2, black_threshold)
 
@@ -184,6 +181,5 @@ def cd_score(img1, img2):
     img2_sketch = img2_sketch.unsqueeze(0)
 
     CD = ChamferDistance2dMetric()
-    cd = CD(img1_sketch,img2_sketch)
-    return cd
+    return CD(img1_sketch,img2_sketch)
 

@@ -56,27 +56,27 @@ class VtxMat():
         mean_loss = []
         log = Logger(self.config, self.expdir)
         updates = 0
-        
+
         # set seed
         random.seed(opt.seed)
         torch.manual_seed(opt.seed)
         torch.cuda.manual_seed(opt.seed)
         np.random.seed(opt.seed)
 
+        avg_time = 0
+        avg_num = 0
         # start training
         for epoch in range(1, opt.epoch+1):
             np.random.seed(opt.seed + epoch)
             train_loader = self.train_loader
             log.set_progress(epoch, len(train_loader))
             batch_loss = 0
-            batch_acc = 0 
+            batch_acc = 0
             batch_valid_acc = 0
             batch_iter = 0
             model.train()
-            avg_time = 0
-            avg_num = 0
             # torch.cuda.synchronize()
-            
+
             for i, pred in enumerate(train_loader):
                 # tstart = time.time()
                 # print(pred['file_name'])
@@ -111,11 +111,6 @@ class VtxMat():
                     batch_valid_acc = 0
                     batch_iter = 0
 
-            # torch.cuda.synchronize()
-
-            # avg_num += 1
-                # for name, params in model.named_parameters():
-                #     print('-->name:, ', name, '-->grad mean', params.grad.mean())
             # print("All time is ", avg_time, "AVG time is ", avg_time * 1.0 /avg_num,  "number is ", avg_num, flush=True)
 
             # save checkpoint 
@@ -128,14 +123,16 @@ class VtxMat():
 
                 filename = os.path.join(self.ckptdir, f'epoch_{epoch}.pt')
                 torch.save(checkpoint, filename)
-                
+
             # validate
             if epoch % opt.test_freq == 0:
 
-                if not os.path.exists(os.path.join(self.visdir, 'epoch' + str(epoch))):
-                    os.mkdir(os.path.join(self.visdir, 'epoch' + str(epoch)))
-                eval_output_dir = os.path.join(self.visdir, 'epoch' + str(epoch))    
-                
+                if not os.path.exists(
+                    os.path.join(self.visdir, f'epoch{str(epoch)}')
+                ):
+                    os.mkdir(os.path.join(self.visdir, f'epoch{str(epoch)}'))
+                eval_output_dir = os.path.join(self.visdir, f'epoch{str(epoch)}')    
+
                 test_loader = self.test_loader
 
                 with torch.no_grad():
@@ -143,7 +140,7 @@ class VtxMat():
                     mean_acc = []
                     mean_valid_acc = []
                     model.eval()
-                    for i_eval, data in enumerate(tqdm(test_loader, desc='Predicting Vtx Corr...')):
+                    for data in tqdm(test_loader, desc='Predicting Vtx Corr...'):
                         pred = model(data)
                         # for k, v in data.items():
                         #     pred[k] = v[0]
@@ -159,11 +156,11 @@ class VtxMat():
                     print('Epoch [{}/{}]], Acc.: {:.4f}, Valid Acc.{:.4f}' 
                         .format(epoch, opt.epoch, np.mean(mean_acc), np.mean(mean_valid_acc)) )
                     sys.stdout.flush()
-                        # make_matching_plot(
-                        #     image0, image1, kpts0, kpts1, mkpts0, mkpts1, color,
-                        #     text, viz_path, stem, stem, True,
-                        #     True, False, 'Matches')
-        
+                                    # make_matching_plot(
+                                    #     image0, image1, kpts0, kpts1, mkpts0, mkpts1, color,
+                                    #     text, viz_path, stem, stem, True,
+                                    #     True, False, 'Matches')
+
             self.schedular.step()
 
             
@@ -189,12 +186,16 @@ class VtxMat():
 
             model.eval()
 
-            if not os.path.exists(os.path.join(self.evaldir, 'epoch' + str(epoch_tested))):
-                os.mkdir(os.path.join(self.evaldir, 'epoch' + str(epoch_tested)))
-            if not os.path.exists(os.path.join(self.evaldir, 'epoch' + str(epoch_tested), 'jsons')):
-                os.mkdir(os.path.join(self.evaldir, 'epoch' + str(epoch_tested), 'jsons'))
-            eval_output_dir = os.path.join(self.evaldir, 'epoch' + str(epoch_tested))    
-                
+            if not os.path.exists(
+                os.path.join(self.evaldir, f'epoch{str(epoch_tested)}')
+            ):
+                os.mkdir(os.path.join(self.evaldir, f'epoch{str(epoch_tested)}'))
+            if not os.path.exists(
+                os.path.join(self.evaldir, f'epoch{str(epoch_tested)}', 'jsons')
+            ):
+                os.mkdir(os.path.join(self.evaldir, f'epoch{str(epoch_tested)}', 'jsons'))
+            eval_output_dir = os.path.join(self.evaldir, f'epoch{str(epoch_tested)}')    
+
             test_loader = self.test_loader
             print(len(test_loader))
             mean_acc = []
@@ -208,7 +209,7 @@ class VtxMat():
             mean_model_valid_acc = []
             mean_action_acc = []
             mean_action_valid_acc = []
-            
+
             mean_none_acc = []
             mean_none_valid_acc = []
 
@@ -219,7 +220,7 @@ class VtxMat():
                 for k, v in pred.items():
                     pred[k] = v[0]
                     pred = {**pred, **data}
-            
+
                 mean_acc.append(pred['accuracy'])
                 mean_valid_acc.append(pred['valid_accuracy'])
                 this_pred = (pred['matches0'] != -1).float().cpu().data.numpy().astype(np.float32)
@@ -239,17 +240,17 @@ class VtxMat():
                         mean_action_valid_acc.append(pred['valid_accuracy'])
                         unmarked = False
                         break
-                
+
                 if unmarked:
                     mean_none_acc.append(pred['accuracy'])
                     mean_action_valid_acc.append(pred['valid_accuracy'])
 
                 if 'invalid_accuracy' in pred and pred['invalid_accuracy'] is not None:
                     mean_invalid_acc.append(pred['invalid_accuracy'])
-                
+
                 img_vis = visualize(pred)
                 cv2.imwrite(os.path.join(eval_output_dir, pred['file_name'].replace('/', '_') + '.jpg'), img_vis)
-                
+
             log.log_eval({
                 'updates': self.config.testing.ckpt_epoch,
                 'Accuracy': np.mean(mean_acc),
@@ -262,8 +263,6 @@ class VtxMat():
                 'Unseen Both Valid Accuracy': np.mean(mean_none_valid_acc),
                 'Matching Rate': np.mean(mean_matched)
                 })
-                # print ('Epoch [{}/{}]], Acc.: {:.4f}, Valid Acc.{:.4f}' 
-                #     .format(epoch, opt.epoch, np.mean(mean_acc), np.mean(mean_valid_acc)) )
             sys.stdout.flush()
 
     def _build(self):
@@ -279,14 +278,13 @@ class VtxMat():
 
     def _build_model(self):
         """ Define Model """
-        config = self.config 
-        if hasattr(config.model, 'name'):
-            print(f'Experiment Using {config.model.name}')
-            model_class = getattr(models, config.model.name)
-            model = model_class(config.model)
-        else:
+        config = self.config
+        if not hasattr(config.model, 'name'):
             raise NotImplementedError("Wrong Model Selection")
-        
+
+        print(f'Experiment Using {config.model.name}')
+        model_class = getattr(models, config.model.name)
+        model = model_class(config.model)
         model = nn.DataParallel(model)
         self.model = model.cuda()
 
@@ -304,7 +302,7 @@ class VtxMat():
         try:
             optim = getattr(torch.optim, config.type)
         except Exception:
-            raise NotImplementedError('not implemented optim method ' + config.type)
+            raise NotImplementedError(f'not implemented optim method {config.type}')
 
         self.optimizer = optim(itertools.chain(self.model.module.parameters(),
                                              ),

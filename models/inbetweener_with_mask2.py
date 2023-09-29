@@ -91,10 +91,7 @@ class KeypointEncoder(nn.Module):
 
     def forward(self, kpts):
         inputs = kpts.transpose(1, 2)
-        # print(inputs.size(), 'wula!')
-        x = self.encoder(inputs)
-        # print(x.size())
-        return x
+        return self.encoder(inputs)
 
 
 def attention(query, key, value, mask=None):
@@ -482,7 +479,7 @@ class InbetweenerM(nn.Module):
             mscores1 = torch.where(mutual1, mscores0.gather(1, indices1), zero)
             # valid0 = mutual0 & (mscores0 > self.config.match_threshold)
             # valid1 = mutual1 & valid0.gather(1, indices1)
-            
+
             valid0 = mscores0 > 0.2
             valid1 = valid0.gather(1, indices1)
             indices0 = torch.where(valid0, indices0, indices0.new_tensor(-1))
@@ -497,7 +494,7 @@ class InbetweenerM(nn.Module):
 
             motion_pred0 = torch.softmax(score0.masked_fill(adj0==0, float('-inf')), dim=-1) @ motion_pred0
             motion_pred1 = torch.softmax(score1.masked_fill(adj1==0, float('-inf')), dim=-1) @ motion_pred1
-            
+
             vb0 = self.mask_map(dec0)[:, 0]
             vb1 = self.mask_map(dec1)[:, 0]
             vb0[:] = 1
@@ -509,7 +506,7 @@ class InbetweenerM(nn.Module):
             im0_erode[im0_erode <= 0] = 0
             im1_erode[im1_erode > 0] = 1
             im1_erode[im1_erode <= 0] = 0
-            
+
             im0_erode = tensor_erode(im0_erode, 3)
             im1_erode = tensor_erode(im1_erode, 3)
 
@@ -544,7 +541,7 @@ class InbetweenerM(nn.Module):
                         #     vb0[0, node] = -1
                 for node, nbs in enumerate(data['topo1'][0]):
                     for nb in nbs:
-                        
+
                         # if vb1[0, nb] and vb1[0, node] and ((kpt1t[0, node] - kpt1t[0, nb]) ** 2).sum() / (((kpts1[0, node] - kpts1[0, nb]) ** 2).sum() + 1e-7) >3:
                         #     vb1[0, nb] = -1
                         #     vb1[0, node] = -1
@@ -583,13 +580,13 @@ class InbetweenerM(nn.Module):
 
         motion_pred0 = torch.softmax(score0.masked_fill(adj0==0, float('-inf')), dim=-1) @ motion_pred0
         motion_pred1 = torch.softmax(score1.masked_fill(adj1==0, float('-inf')), dim=-1) @ motion_pred1
-        
+
         vb0 = self.mask_map(dec0)[:, 0]
         vb1 = self.mask_map(dec1)[:, 0]
 
         # motion0_pred, vb0 = pred0[:, :2].permute(0, 2, 1), pred0[:, 2:][:, 0]
         # motion1_pred, vb1 = pred1[:, :2].permute(0, 2, 1), pred1[:, 2:][:, 0]
-        
+
         # delta0, delta1 = motion_delta[:, :, :mmax].permute(0, 2, 1), motion_delta[:, :, mmax:].permute(0, 2, 1)
         # motion_output0, motion_output1 =  motion0 + delta0, motion1 + delta1
         motion_output0, motion_output1 =  motion_pred0.clone(), motion_pred1.clone()
@@ -613,13 +610,13 @@ class InbetweenerM(nn.Module):
         # vb1_output[vb1_output >= 0] = 1.0
         # vb1_output[vb1_output < 0 ] = 0.0
 
-        
+
 
         kpt0t = kpts0 + motion_output0 / 2
         kpt1t = kpts1 + motion_output1 / 2
         # kpt1t[batch, corr01[corr01 != -1]] = kpt0t[corr01 != -1]
-        
-        
+
+
         ##################################################
         ##  Note Here the mini batch size is 1!!!!!!!!  ##
         ##################################################
@@ -637,86 +634,7 @@ class InbetweenerM(nn.Module):
                         vb1[0, nb] = -1
                         vb1[0, node] = -1
 
-        if 'motion0' in data and 'motion1' in data:
-            # valid_motion0 = motion_output0[mask0[:, :, None].repeat(1, 1, 2)]
-            # gt_valid_motion0 = data['motion0'][:, :mmax][mask0[:, :, None].repeat(1, 1, 2)].float()
-            # valid_motion1 = motion_output1[mask1[:, :, None].repeat(1, 1, 2)]
-            # gt_valid_motion1 = data['motion1'][:, :nmax][mask1[:, :, None].repeat(1, 1, 2)].float()
-
-            loss_motion = torch.nn.functional.l1_loss(motion_pred0, data['motion0'][:, :mmax]) +\
-                torch.nn.functional.l1_loss(motion_pred1, data['motion1'][:, :nmax])
-            
-            # loss_valid0 = ((corr01 == -1) & (mask0 == 1))
-            # loss_valid1 = ((corr10 == -1) & (mask1 == 1))
-            EPE0 = ((motion_pred0 - data['motion0'][:, :mmax]) ** 2).sum(dim=-1).sqrt()
-            EPE1 = ((motion_pred1 - data['motion1'][:, :nmax]) ** 2).sum(dim=-1).sqrt()
-            # print(EPE0.size(), 'fdsafdsa')
-
-            EPE = (EPE0.mean() + EPE1.mean()) * 0.5
-            # print(len(EPE0[mask0]), len(EPE1[mask1]))
-            # print(vb0[:, :mmax][mask0], vb0[:, :mmax][mask0].shape, data['visibility0'][:, :mmax][mask0], data['visibility0'][:, :mmax][mask0].shape)
-            # print(.size())
-            # print((vb0[:, :mmax] > 0).float().sum(), data['visibility0'][:, :mmax].float().sum())
-            # pos_weight=vb0.new_tensor([0.5])
-            if 'visibility0' in data and 'visibility1' in data:
-                loss_visibility = torch.nn.functional.binary_cross_entropy_with_logits(vb0[:, :mmax].view(-1, 1), data['visibility0'][:, :mmax].view(-1, 1), pos_weight=vb0.new_tensor([self.pos_weight])) + \
-                torch.nn.functional.binary_cross_entropy_with_logits(vb1[:, :nmax].view(-1, 1), data['visibility1'][:, :nmax].view(-1, 1), pos_weight=vb0.new_tensor([self.pos_weight]))
-            
-                VB_Acc = ((((vb0 > 0).float() == data['visibility0'][:, :mmax]).float().sum() + ((vb1 > 0).float() == data['visibility1'][:, :nmax]).float().sum()) * 1.0 / (mmax + nmax))
-            else:
-                loss_visibility = 0
-                VB_Acc = EPE.new_zeros([1])
-            loss = loss_motion + 10 * loss_visibility
-
-            loss_mean = torch.mean(loss)
-            # loss_mean = torch.reshape(loss_mean, (1, -1))
-            # print(loss_mean, flush=True)
-
-            # print(all_matches[:, :mmax].size(), indices0.size(), mask0.size(), flush=True)
-            #print((all_matches[0] == indices0[0]).sum())
-
-            # print(vb1.size(),corr01.size())
-
-            # kpt0t = torch.nn.functional.pad(kpts0 + motion_output0, (0, 0, 0, self.max_len - mmax, 0, 0), mode='constant', value=0)
-            # kpt1t = torch.nn.functional.pad(kpts1 + motion_output1, (0, 0, 0, self.max_len - nmax, 0, 0), mode='constant', value=0),
-
-            # kpt1t[:, :nmax][batch, corr01[corr01 != -1]] = kpt0t[:, :mmax][corr01 != -1]
-
-            b, _, _ = motion_pred0.size()
-            # batch = torch.arange(b)[:, None].repeat(1, mmax)[corr01 != -1].long()
-            # # print(kpts0[corr01 != -1].size(), corr01[corr01 != -1].size())
-            # matched_intermediate = (kpts0[(corr01 != -1)] + kpts1[batch, corr01[corr01 != -1].long(), :]) * 0.5
-            # motion0[corr01 != -1] = matched_intermediate - kpts0[corr01 != -1]
-            # motion1[batch, corr01[corr01 != -1].long(), :] = matched_intermediate - kpts1[batch, corr01[corr01 != -1].long(), :]
-
-            # vb0 = torch.nn.functional.pad(vb0, (0, self.max_len - mmax, 0, 0), mode='constant', value=0),
-            # vb1 = torch.nn.functional.pad(vb1, (0, self.max_len - nmax, 0, 0), mode='constant', value=0),
-
-            # self.max_len = 3050
-            # VB_Acc = ((((vb0 > 0.5).float() == data['visibility0'][:, :mmax]).float().sum() + ((vb1 > 0.5).float() == data['visibility1'][:, :nmax]).float().sum()) * 1.0 / (mmax + nmax))
-                
-            return {
-                # 'matches0': indices0, # use -1 for invalid match
-                # 'matches1': indices1[0], # use -1 for invalid match
-                # 'matching_scores0': mscores0,
-                # 'matching_scores1': mscores1[0],
-                # 'keypointst0': torch.nn.functional.pad(kpts0 + motion_output0, (0, 0, 0, self.max_len - mmax, 0, 0), mode='constant', value=0),
-                # 'keypointst1': torch.nn.functional.pad(kpts1 + motion_output1, (0, 0, 0, self.max_len - nmax, 0, 0), mode='constant', value=0),
-                # 'vb0': torch.nn.functional.pad(vb0, (0, self.max_len - mmax, 0, 0), mode='constant', value=0),
-                # 'vb1': torch.nn.functional.pad(vb1, (0, self.max_len - nmax, 0, 0), mode='constant', value=0),
-                'keypoints0t': kpt0t,
-                'keypoints1t': kpt1t,
-                'vb0': (vb0 > 0).float(),
-                'vb1': (vb1 > 0).float(),
-                'loss': loss_mean,
-                'EPE': EPE,
-                'Visibility Acc': VB_Acc
-                # ((((vb0[mask0] > 0).float() == data['visibility0'][:, :mmax][mask0]).float().sum() + ((vb1[mask1] > 0).float() == data['visibility1'][:, :nmax][mask1]).float().sum()) * 1.0 / (mask0.float().sum() + mask1.float().sum())),
-                # 'skip_train': [False],
-                # 'accuracy': (((all_matches[:, :mmax] == indices0) & mask0.bool()).sum() / mask0.sum()).item(),
-                # 'valid_accuracy': (((all_matches[:, :mmax] == indices0) & (all_matches[:, :mmax] != -1) & mask0.bool()).float().sum() / ((all_matches[:, :mmax] != -1) & mask0.bool()).float().sum()).item(),
-            }
-        else:
+        if 'motion0' not in data or 'motion1' not in data:
             return {
                 'loss': -1,
                 'skip_train': True,
@@ -728,6 +646,84 @@ class InbetweenerM(nn.Module):
                 # 'area_accuracy': -1,
                 # 'valid_accuracy': -1,
             }
+        # valid_motion0 = motion_output0[mask0[:, :, None].repeat(1, 1, 2)]
+        # gt_valid_motion0 = data['motion0'][:, :mmax][mask0[:, :, None].repeat(1, 1, 2)].float()
+        # valid_motion1 = motion_output1[mask1[:, :, None].repeat(1, 1, 2)]
+        # gt_valid_motion1 = data['motion1'][:, :nmax][mask1[:, :, None].repeat(1, 1, 2)].float()
+
+        loss_motion = torch.nn.functional.l1_loss(motion_pred0, data['motion0'][:, :mmax]) +\
+                torch.nn.functional.l1_loss(motion_pred1, data['motion1'][:, :nmax])
+
+        # loss_valid0 = ((corr01 == -1) & (mask0 == 1))
+        # loss_valid1 = ((corr10 == -1) & (mask1 == 1))
+        EPE0 = ((motion_pred0 - data['motion0'][:, :mmax]) ** 2).sum(dim=-1).sqrt()
+        EPE1 = ((motion_pred1 - data['motion1'][:, :nmax]) ** 2).sum(dim=-1).sqrt()
+        # print(EPE0.size(), 'fdsafdsa')
+
+        EPE = (EPE0.mean() + EPE1.mean()) * 0.5
+        # print(len(EPE0[mask0]), len(EPE1[mask1]))
+        # print(vb0[:, :mmax][mask0], vb0[:, :mmax][mask0].shape, data['visibility0'][:, :mmax][mask0], data['visibility0'][:, :mmax][mask0].shape)
+        # print(.size())
+        # print((vb0[:, :mmax] > 0).float().sum(), data['visibility0'][:, :mmax].float().sum())
+        # pos_weight=vb0.new_tensor([0.5])
+        if 'visibility0' in data and 'visibility1' in data:
+            loss_visibility = torch.nn.functional.binary_cross_entropy_with_logits(vb0[:, :mmax].view(-1, 1), data['visibility0'][:, :mmax].view(-1, 1), pos_weight=vb0.new_tensor([self.pos_weight])) + \
+                torch.nn.functional.binary_cross_entropy_with_logits(vb1[:, :nmax].view(-1, 1), data['visibility1'][:, :nmax].view(-1, 1), pos_weight=vb0.new_tensor([self.pos_weight]))
+
+            VB_Acc = ((((vb0 > 0).float() == data['visibility0'][:, :mmax]).float().sum() + ((vb1 > 0).float() == data['visibility1'][:, :nmax]).float().sum()) * 1.0 / (mmax + nmax))
+        else:
+            loss_visibility = 0
+            VB_Acc = EPE.new_zeros([1])
+        loss = loss_motion + 10 * loss_visibility
+
+        loss_mean = torch.mean(loss)
+        # loss_mean = torch.reshape(loss_mean, (1, -1))
+        # print(loss_mean, flush=True)
+
+        # print(all_matches[:, :mmax].size(), indices0.size(), mask0.size(), flush=True)
+        #print((all_matches[0] == indices0[0]).sum())
+
+        # print(vb1.size(),corr01.size())
+
+        # kpt0t = torch.nn.functional.pad(kpts0 + motion_output0, (0, 0, 0, self.max_len - mmax, 0, 0), mode='constant', value=0)
+        # kpt1t = torch.nn.functional.pad(kpts1 + motion_output1, (0, 0, 0, self.max_len - nmax, 0, 0), mode='constant', value=0),
+
+        # kpt1t[:, :nmax][batch, corr01[corr01 != -1]] = kpt0t[:, :mmax][corr01 != -1]
+
+        b, _, _ = motion_pred0.size()
+        # batch = torch.arange(b)[:, None].repeat(1, mmax)[corr01 != -1].long()
+        # # print(kpts0[corr01 != -1].size(), corr01[corr01 != -1].size())
+        # matched_intermediate = (kpts0[(corr01 != -1)] + kpts1[batch, corr01[corr01 != -1].long(), :]) * 0.5
+        # motion0[corr01 != -1] = matched_intermediate - kpts0[corr01 != -1]
+        # motion1[batch, corr01[corr01 != -1].long(), :] = matched_intermediate - kpts1[batch, corr01[corr01 != -1].long(), :]
+
+        # vb0 = torch.nn.functional.pad(vb0, (0, self.max_len - mmax, 0, 0), mode='constant', value=0),
+        # vb1 = torch.nn.functional.pad(vb1, (0, self.max_len - nmax, 0, 0), mode='constant', value=0),
+
+        # self.max_len = 3050
+        # VB_Acc = ((((vb0 > 0.5).float() == data['visibility0'][:, :mmax]).float().sum() + ((vb1 > 0.5).float() == data['visibility1'][:, :nmax]).float().sum()) * 1.0 / (mmax + nmax))
+
+        return {
+            # 'matches0': indices0, # use -1 for invalid match
+            # 'matches1': indices1[0], # use -1 for invalid match
+            # 'matching_scores0': mscores0,
+            # 'matching_scores1': mscores1[0],
+            # 'keypointst0': torch.nn.functional.pad(kpts0 + motion_output0, (0, 0, 0, self.max_len - mmax, 0, 0), mode='constant', value=0),
+            # 'keypointst1': torch.nn.functional.pad(kpts1 + motion_output1, (0, 0, 0, self.max_len - nmax, 0, 0), mode='constant', value=0),
+            # 'vb0': torch.nn.functional.pad(vb0, (0, self.max_len - mmax, 0, 0), mode='constant', value=0),
+            # 'vb1': torch.nn.functional.pad(vb1, (0, self.max_len - nmax, 0, 0), mode='constant', value=0),
+            'keypoints0t': kpt0t,
+            'keypoints1t': kpt1t,
+            'vb0': (vb0 > 0).float(),
+            'vb1': (vb1 > 0).float(),
+            'loss': loss_mean,
+            'EPE': EPE,
+            'Visibility Acc': VB_Acc
+            # ((((vb0[mask0] > 0).float() == data['visibility0'][:, :mmax][mask0]).float().sum() + ((vb1[mask1] > 0).float() == data['visibility1'][:, :nmax][mask1]).float().sum()) * 1.0 / (mask0.float().sum() + mask1.float().sum())),
+            # 'skip_train': [False],
+            # 'accuracy': (((all_matches[:, :mmax] == indices0) & mask0.bool()).sum() / mask0.sum()).item(),
+            # 'valid_accuracy': (((all_matches[:, :mmax] == indices0) & (all_matches[:, :mmax] != -1) & mask0.bool()).float().sum() / ((all_matches[:, :mmax] != -1) & mask0.bool()).float().sum()).item(),
+        }
 
 
 if __name__ == '__main__':

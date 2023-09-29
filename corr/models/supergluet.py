@@ -87,9 +87,7 @@ class KeypointEncoder(nn.Module):
     def forward(self, kpts):
         inputs = kpts.transpose(1, 2)
 
-        x = self.encoder(inputs)
-
-        return x
+        return self.encoder(inputs)
 
 class TopoEncoder(nn.Module):
     """ Joint encoding of visual appearance and location using MLPs"""
@@ -105,9 +103,7 @@ class TopoEncoder(nn.Module):
     def forward(self, kpts):
         inputs = kpts.transpose(1, 2)
 
-        x = self.encoder(inputs)
-
-        return x
+        return self.encoder(inputs)
 
 
 def attention(query, key, value, mask=None):
@@ -297,7 +293,7 @@ class SuperGlueT(nn.Module):
         desc1 = desc1 + self.tenc(desc1.new_tensor(spec1))
 
         mask00 = torch.ones_like(mask0)[:, :, None] * mask0[:, None, :]
-        
+
         mask11 = torch.ones_like(mask1)[:, :, None] * mask1[:, None, :]
         mask01 = torch.ones_like(mask0)[:, :, None] * mask1[:, None, :]
         mask10 = torch.ones_like(mask1)[:, :, None] * mask0[:, None, :]
@@ -317,21 +313,21 @@ class SuperGlueT(nn.Module):
         file_name = data['file_name']
         all_matches = data['all_matches'] if 'all_matches' in data else None# shape = (1, K1)
 
-        
+
         # positional embedding
         # Keypoint normalization.
         kpts0 = normalize_keypoints(kpts0, data['image0'].shape)
         kpts1 = normalize_keypoints(kpts1, data['image1'].shape)
 
         # Keypoint MLP encoder.
-    
+
         pos0 = self.kenc(kpts0)
         pos1 = self.kenc(kpts1)
 
         desc0 = desc0 + pos0
         desc1 = desc1 + pos1
 
-       
+
         # Multi-layer Transformer network.
         desc0, desc1 = self.gnn(desc0, desc1, mask00, mask11, mask01, mask10)
 
@@ -365,42 +361,13 @@ class SuperGlueT(nn.Module):
         mscores1 = torch.where(mutual1, mscores0.gather(1, indices1), zero)
         valid0 = mutual0 & (mscores0 > self.config.match_threshold)
         valid1 = mutual1 & valid0.gather(1, indices1)
-        
+
         valid0 = mscores0 > self.config.match_threshold
         valid1 = valid0.gather(1, indices1)
         indices0 = torch.where(valid0, indices0, indices0.new_tensor(-1))
         indices1 = torch.where(valid1, indices1, indices1.new_tensor(-1))
 
-        # check if indexed correctly
-
-        loss = []
-
-        
-
-        if all_matches is not None:
-            for b in range(len(dim_m)):
-
-                for i in range(int(dim_m[b])):
-      
-                    x = i
-                    y = all_matches[b][i].long()
-
-                    loss.append(-scores[b][x][y] ) # check batch size == 1 ?
-
-            loss_mean = torch.mean(torch.stack(loss))
-            loss_mean = torch.reshape(loss_mean, (1, -1))
-
-            return {
-                'matches0': indices0, # use -1 for invalid match
-                'matches1': indices1, # use -1 for invalid match
-                'matching_scores0': mscores0,
-                # 'matching_scores1': mscores1[0],
-                'loss': loss_mean,
-                'skip_train': False,
-                'accuracy': (((all_matches[:, :mmax] == indices0) & mask0.bool()).sum() / mask0.sum()).item(),
-                'valid_accuracy': (((all_matches[:, :mmax] == indices0) & (all_matches[:, :mmax] != -1) & mask0.bool()).float().sum() / ((all_matches[:, :mmax] != -1) & mask0.bool()).float().sum()).item(),
-            }
-        else:
+        if all_matches is None:
             return {
                 'matches0': indices0[0], # use -1 for invalid match
                 'matching_scores0': mscores0[0],
@@ -410,6 +377,34 @@ class SuperGlueT(nn.Module):
                 'area_accuracy': -1,
                 'valid_accuracy': -1,
             }
+        # check if indexed correctly
+
+        loss = []
+
+
+
+        for b in range(len(dim_m)):
+
+            for i in range(int(dim_m[b])):
+
+                x = i
+                y = all_matches[b][i].long()
+
+                loss.append(-scores[b][x][y] ) # check batch size == 1 ?
+
+        loss_mean = torch.mean(torch.stack(loss))
+        loss_mean = torch.reshape(loss_mean, (1, -1))
+
+        return {
+            'matches0': indices0, # use -1 for invalid match
+            'matches1': indices1, # use -1 for invalid match
+            'matching_scores0': mscores0,
+            # 'matching_scores1': mscores1[0],
+            'loss': loss_mean,
+            'skip_train': False,
+            'accuracy': (((all_matches[:, :mmax] == indices0) & mask0.bool()).sum() / mask0.sum()).item(),
+            'valid_accuracy': (((all_matches[:, :mmax] == indices0) & (all_matches[:, :mmax] != -1) & mask0.bool()).float().sum() / ((all_matches[:, :mmax] != -1) & mask0.bool()).float().sum()).item(),
+        }
 
 
 if __name__ == '__main__':

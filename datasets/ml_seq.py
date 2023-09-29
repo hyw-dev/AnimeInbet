@@ -138,8 +138,8 @@ class MixamoLineArtMotionSequence(data.Dataset):
 
         assert(gap%2 != 0)
 
-        self.is_train = True if mode == 'train' else False
-        self.is_eval = True if mode == 'eval' else False
+        self.is_train = mode == 'train'
+        self.is_eval = mode == 'eval'
         # self.is_train = False
         self.max_len = max_len
 
@@ -161,7 +161,7 @@ class MixamoLineArtMotionSequence(data.Dataset):
                 for mm in model:
                     if mm in clip:
                         skip = True
-                
+
             if action != None:
                 for aa in action:
                     if aa in clip:

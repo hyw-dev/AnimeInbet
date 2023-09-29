@@ -94,8 +94,7 @@ class KeypointEncoder(nn.Module):
     def forward(self, kpts):
         inputs = kpts.transpose(1, 2)
 
-        x = self.encoder(inputs)
-        return x
+        return self.encoder(inputs)
 
 class TopoEncoder(nn.Module):
     """ Joint encoding of visual appearance and location using MLPs"""
@@ -110,8 +109,7 @@ class TopoEncoder(nn.Module):
 
     def forward(self, kpts):
         inputs = kpts.transpose(1, 2)
-        x = self.encoder(inputs)
-        return x
+        return self.encoder(inputs)
 
 
 def attention(query, key, value, mask=None):
@@ -439,7 +437,7 @@ class InbetweenerTM(nn.Module):
 
             motion_pred0 = torch.softmax(score0, dim=-1) @ motion_pred0
             motion_pred1 = torch.softmax(score1, dim=-1) @ motion_pred1
-            
+
             self.mask_map.eval()
             vb0 = self.mask_map(dec0)[:, 0]
             vb1 = self.mask_map(dec1)[:, 0]
@@ -489,7 +487,7 @@ class InbetweenerTM(nn.Module):
         mscores1 = torch.where(mutual1, mscores0.gather(1, indices1), zero)
         # valid0 = mutual0 & (mscores0 > self.config.match_threshold)
         # valid1 = mutual1 & valid0.gather(1, indices1)
-        
+
         valid0 = mscores0 > 0.2
         valid1 = valid0.gather(1, indices1)
         indices0 = torch.where(valid0, indices0, indices0.new_tensor(-1))
@@ -503,7 +501,7 @@ class InbetweenerTM(nn.Module):
 
 
 
-        
+
         vb0 = self.mask_map(dec0)[:, 0]
         vb1 = self.mask_map(dec1)[:, 0]
         motion_output0, motion_output1 =  motion_pred0.clone(), motion_pred1.clone()
@@ -517,7 +515,7 @@ class InbetweenerTM(nn.Module):
 
             # motion0_pred, vb0 = pred0[:, :2].permute(0, 2, 1), pred0[:, 2:][:, 0]
             # motion1_pred, vb1 = pred1[:, :2].permute(0, 2, 1), pred1[:, 2:][:, 0]
-            
+
             # delta0, delta1 = motion_delta[:, :, :mmax].permute(0, 2, 1), motion_delta[:, :, mmax:].permute(0, 2, 1)
             # motion_output0, motion_output1 =  motion0 + delta0, motion1 + delta1
             motion_output0, motion_output1 =  motion_pred0.clone(), motion_pred1.clone()
@@ -528,16 +526,16 @@ class InbetweenerTM(nn.Module):
             im0_erode[im0_erode <= 0] = 0
             im1_erode[im1_erode > 0] = 1
             im1_erode[im1_erode <= 0] = 0
-            
+
             im0_erode = tensor_erode(im0_erode, 7)
             im1_erode = tensor_erode(im1_erode, 7)
 
 
-            
+
             kpt0t = kpts0 + motion_output0 / 2
             kpt1t = kpts1 + motion_output1 / 2
-        
-        
+
+
             ##################################################
             ##  Note Here the mini batch size is 1!!!!!!!!  ##
             ##################################################
@@ -554,8 +552,8 @@ class InbetweenerTM(nn.Module):
                         if vb1[0, nb] > 0 and vb1[0, node] > 0 and ((kpt1t[0, node] - kpt1t[0, nb]) ** 2).sum() / (((kpts1[0, node] - kpts1[0, nb]) ** 2).sum() + 1e-7) > 5:
                             vb1[0, nb] = -1
                             vb1[0, node] = -1
-            
-            
+
+
             kpt0t = kpts0 + motion_output0 * 1
             kpt1t = kpts1 + motion_output1 * 1
             if 'topo0' in data and 'topo1' in data:
@@ -573,56 +571,20 @@ class InbetweenerTM(nn.Module):
 
                 for node, nbs in enumerate(data['topo1'][0]):
                     for nb in nbs:
-                        
+
                         center = ((kpt1t[0, node] + kpt1t[0, nb]) * 0.5).int()[0]
                         if vb1[0, nb] > 0  and vb1[0, node] > 0 and im0_erode[0,:, center[1], center[0]].mean() > 0.8:
                             vb1[0, nb] = -1
                             vb1[0, node] = -1
 
-        
+
 
         kpt0t = kpts0 + motion_output0 / 2
         kpt1t = kpts1 + motion_output1 / 2
 
-        
 
-        if 'motion0' in data and 'motion1' in data:
-            loss_motion = torch.nn.functional.l1_loss(motion_pred0, data['motion0'][:, :mmax]) +\
-                torch.nn.functional.l1_loss(motion_pred1, data['motion1'][:, :nmax])
-            
 
-            EPE0 = ((motion_pred0 - data['motion0'][:, :mmax]) ** 2).sum(dim=-1).sqrt()
-            EPE1 = ((motion_pred1 - data['motion1'][:, :nmax]) ** 2).sum(dim=-1).sqrt()
-            # print(EPE0.size(), 'fdsafdsa')
-
-            EPE = (EPE0.mean() + EPE1.mean()) * 0.5
-
-            if 'visibility0' in data and 'visibility1' in data:
-                loss_visibility = torch.nn.functional.binary_cross_entropy_with_logits(vb0[:, :mmax].view(-1, 1), data['visibility0'][:, :mmax].view(-1, 1), pos_weight=vb0.new_tensor([self.pos_weight])) + \
-                torch.nn.functional.binary_cross_entropy_with_logits(vb1[:, :nmax].view(-1, 1), data['visibility1'][:, :nmax].view(-1, 1), pos_weight=vb0.new_tensor([self.pos_weight]))
-            
-                VB_Acc = ((((vb0 > 0).float() == data['visibility0'][:, :mmax]).float().sum() + ((vb1 > 0).float() == data['visibility1'][:, :nmax]).float().sum()) * 1.0 / (mmax + nmax))
-            else:
-                loss_visibility = 0
-                VB_Acc = EPE.new_zeros([1])
-            loss = loss_motion + 10 * loss_visibility
-
-            loss_mean = torch.mean(loss)
-
-            b, _, _ = motion_pred0.size()
-
-            return {
-                'keypoints0t': kpt0t,
-                'keypoints1t': kpt1t,
-                'vb0': (vb0 > 0).float(),
-                'vb1': (vb1 > 0).float(),
-                'r0': motion_output0,
-                'r1': motion_output1,
-                'loss': loss_mean,
-                'EPE': EPE,
-                'Visibility Acc': VB_Acc
-            }
-        else:
+        if 'motion0' not in data or 'motion1' not in data:
             return {
                 'loss': -1,
                 'skip_train': True,
@@ -631,6 +593,41 @@ class InbetweenerTM(nn.Module):
                 'vb0': vb0,
                 'vb1': vb1,
             }
+        loss_motion = torch.nn.functional.l1_loss(motion_pred0, data['motion0'][:, :mmax]) +\
+                torch.nn.functional.l1_loss(motion_pred1, data['motion1'][:, :nmax])
+
+
+        EPE0 = ((motion_pred0 - data['motion0'][:, :mmax]) ** 2).sum(dim=-1).sqrt()
+        EPE1 = ((motion_pred1 - data['motion1'][:, :nmax]) ** 2).sum(dim=-1).sqrt()
+        # print(EPE0.size(), 'fdsafdsa')
+
+        EPE = (EPE0.mean() + EPE1.mean()) * 0.5
+
+        if 'visibility0' in data and 'visibility1' in data:
+            loss_visibility = torch.nn.functional.binary_cross_entropy_with_logits(vb0[:, :mmax].view(-1, 1), data['visibility0'][:, :mmax].view(-1, 1), pos_weight=vb0.new_tensor([self.pos_weight])) + \
+                torch.nn.functional.binary_cross_entropy_with_logits(vb1[:, :nmax].view(-1, 1), data['visibility1'][:, :nmax].view(-1, 1), pos_weight=vb0.new_tensor([self.pos_weight]))
+
+            VB_Acc = ((((vb0 > 0).float() == data['visibility0'][:, :mmax]).float().sum() + ((vb1 > 0).float() == data['visibility1'][:, :nmax]).float().sum()) * 1.0 / (mmax + nmax))
+        else:
+            loss_visibility = 0
+            VB_Acc = EPE.new_zeros([1])
+        loss = loss_motion + 10 * loss_visibility
+
+        loss_mean = torch.mean(loss)
+
+        b, _, _ = motion_pred0.size()
+
+        return {
+            'keypoints0t': kpt0t,
+            'keypoints1t': kpt1t,
+            'vb0': (vb0 > 0).float(),
+            'vb1': (vb1 > 0).float(),
+            'r0': motion_output0,
+            'r1': motion_output1,
+            'loss': loss_mean,
+            'EPE': EPE,
+            'Visibility Acc': VB_Acc
+        }
 
 
 if __name__ == '__main__':

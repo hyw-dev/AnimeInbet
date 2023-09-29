@@ -89,8 +89,8 @@ class ProgressHandler(logging.Handler):
     def emit(self, record):
         log_entry = self.format(record)
         if record.message.startswith('> '):
-            sys.stdout.write('{}\r'.format(log_entry.rstrip()))
+            sys.stdout.write(f'{log_entry.rstrip()}\r')
             sys.stdout.flush()
         else:
-            sys.stdout.write('{}\n'.format(log_entry))
+            sys.stdout.write(f'{log_entry}\n')
 
