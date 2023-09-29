@@ -13,7 +13,7 @@ def visvid(dict, inter_frames=1):
 
     source0 = dict['keypoints0'][0].cpu().numpy()
     source2 = dict['keypoints1'][0].cpu().numpy()
- 
+
     source0_topo = dict['ntopo0'][0]
 
     source2_topo = dict['ntopo1'][0]
@@ -34,7 +34,7 @@ def visvid(dict, inter_frames=1):
             cv2.line(canvas2, [source2[node][0], source2[node][1]], [source2[nb][0], source2[nb][1]], [0, 0, 0], 2)
 
 
-    canvases = [ np.zeros_like(img1).copy() + 255 for jj in range(inter_frames)  ] 
+    canvases = [np.zeros_like(img1).copy() + 255 for _ in range(inter_frames)] 
 
     for ii in range(len(canvases)):
         source0_warp = (source0 + (ii + 1.0) / (len(canvases) + 1.0) * r0).astype(int)
@@ -54,6 +54,8 @@ def visvid(dict, inter_frames=1):
     for ii in range(len(canvases)):
         canvases[ii] =  cv2.hconcat([canvas1, canvases[ii]])
 
-    images = [cv2.hconcat([canvas1, canvas1])] + canvases + [cv2.hconcat([canvas2, canvas2])]
-    
-    return images
+    return (
+        [cv2.hconcat([canvas1, canvas1])]
+        + canvases
+        + [cv2.hconcat([canvas2, canvas2])]
+    )

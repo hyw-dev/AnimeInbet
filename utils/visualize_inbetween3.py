@@ -108,19 +108,19 @@ def visualize(dict):
     # img2[:, :, 1] += 180
     # img2[:, :, 2] += 180
     # img2[img2 > 255] = 255
-    
+
     # img1p[:, :, 0] += 255
     # img1p[:, :, 1] += 180
     # img1p[:, :, 2] += 180
     # img1p[img1p > 255] = 255
-    
+
     # img2p[:, :, 0] += 255
     # img2p[:, :, 1] += 180
     # img2p[:, :, 2] += 180
     # img2p[img2p > 255] = 255
 
     # img1, img2, img1p, img2p = img1.astype(np.uint8), img2.astype(np.uint8), img1p.astype(np.uint8), img2p.astype(np.uint8)
-    motion01 = dict['motion0'][0].cpu().numpy().astype(int) 
+    motion01 = dict['motion0'][0].cpu().numpy().astype(int)
     motion21 = dict['motion1'][0].cpu().numpy().astype(int) 
 
     source0_warp = dict['keypoints0t'][0].cpu().numpy().astype(int)
@@ -177,7 +177,7 @@ def visualize(dict):
   #           # if visible21[node] and visible21[nb]:
   #           cv2.line(canvas2, [source2_warp[node][0], source2_warp[node][1]], [source2_warp[nb][0], source2_warp[nb][1]], [0, 0, 0], 2)
 
-    
+
 
     # canvas2
     # black_threshold = 255 // 2
@@ -207,103 +207,4 @@ def visualize(dict):
 
 
 
-    # canvas3 = np.zeros_like(img1) + 255
-    
-
-    # for node, nbs in enumerate(source0_topo):
-    #     for nb in nbs:
-    #         cv2.line(canvas3, [source0[node][0], source0[node][1]], [source0[nb][0], source0[nb][1]], [255, 180, 180], 2)
-    # for node, nbs in enumerate(source2_topo):
-    #     for nb in nbs:
-    #         cv2.line(canvas3, [source2[node][0], source2[node][1]], [source2[nb][0], source2[nb][1]], [180, 180, 255], 2)
-
-    # canvas_corr1 = np.zeros_like(img1) + 255
-    # canvas_corr2 = np.zeros_like(img1) + 255
-
-    # canvas_corr1 = ((dict['image0'][0].permute(1, 2, 0).float().numpy() + 1.0) * 255 / 2).astype(int).copy()
-    # canvas_corr2 = ((dict['image1'][0].permute(1, 2, 0).float().numpy() + 1.0) * 255 / 2).astype(int).copy()
-
-    # canvas_corr1[:, :, 0] += 255
-    # canvas_corr1[:, :, 1] += 180
-    # canvas_corr1[:, :, 2] += 180
-    # canvas_corr1[canvas_corr1 > 255] = 255
-
-    # canvas_corr2[:, :, 0] += 255
-    # canvas_corr2[:, :, 1] += 180
-    # canvas_corr2[:, :, 2] += 180
-    # canvas_corr2[canvas_corr2 > 255] = 255
-
-    # canvas_corr1 = canvas_corr1.astype(np.uint8)
-    # canvas_corr2 = canvas_corr2.astype(np.uint8)
-
-    # # colors1_gt, colors2_gt = {}, {}
-    # colors1_pred, colors2_pred = {}, {}
-    # # cross1_pred, cross2_pred = {}, {}
-    # id1 = np.arange(len(source0))
-    # id2 = np.arange(len(source2))
-
-    # predicted = dict['matches0'].cpu().data.numpy()[0]
-    # predicted1 = dict['matches1'].cpu().data.numpy()[0]
-    # for index in id1:
-    #     color = [np.random.randint(0, 256), np.random.randint(0, 256), np.random.randint(0, 256)]
-    #         # print(predicted.shape, flush=True)
-    #     # if all_matches[index] != -1:
-    #     #     colors2_gt[all_matches[index]] = color
-    #     if predicted[index] != -1:
-    #         colors2_pred[predicted[index]] = color
-    #     # else:
-    #     #     colors2_pred[predicted[index]] = [0, 0, 0]
-
-    #     # colors1_gt[index] = color if all_matches[index] != -1 else [0, 0, 0]
-    #     colors1_pred[index] = color if predicted[index] != -1 else [0, 0, 0]
-
-    #     # if predicted[index] == -1 and colors1_pred[index] != [0, 0, 0]:
-    #     #     color = [np.random.randint(0, 256), np.random.randint(0, 256), np.random.randint(0, 256)]
-    #     #     colors1_pred[index] = [0, 0, 0]
-    #     #     colors2_pred.pop(all_matches[index])
-    #     # whether predicted correctly
-    #     # if predicted[index] != all_matches[index]:
-    #     #     cross1_pred[index] = True
-    #     #     if predicted[index] != -1:
-    #     #         cross2_pred[predicted[index]] = True
-        
-    # for i, p in enumerate(source0):
-    #     ii = id1[i]
-    #     # print(ii)
-    #     cv2.circle(canvas_corr1, [int(p[0]), int(p[1])], 1, colors1_pred[i], 2)
-    #     # if ii in cross1_pred and cross1_pred[ii]:
-    #     #     cv2.rectangle(img1p, [int(p[0]-1), int(p[1]-1)], [int(p[0]+1), int(p[1]+1)], colors1_pred[i],-1)
-    #     # else:
-    #     #     cv2.circle(img1p, [int(p[0]), int(p[1])], 1, colors1_pred[i], 2)
-        
-    # for ii in id2:
-    #     # print(ii)
-    #     color = [0, 0, 0]
-    #     this_is_umatched = 1
-    #     if ii not in colors2_pred:
-    #         colors2_pred[ii] = color
-
-    # for i, p in enumerate(source2):
-    #     ii = id2[i]
-    #     # print(p)
-    #     # cv2.circle(img2, [int(p[0]), int( p[1])], 1, colors2_gt[ii], 2)
-    #     # if ii in cross2_pred and cross2_pred[ii]:
-    #     #     cv2.rectangle(img2p, [int(p[0]-1), int(p[1]-1)], [int(p[0]+1), int(p[1]+1)], colors2_pred[i], -1)
-    #     # else:
-    #     cv2.circle(canvas_corr2, [int(p[0]), int(p[1])], 1, colors2_pred[i], 2)
-
-
-
-
-    #canvas6, canvas5, canvas, 
-    im_h = cv2.hconcat([canvas5])
-    # im_h = canvas5
-  ##  print('<<<< mean cavans5: ', canvas5.mean())
-    # cd = cd_score(canvas5.copy(), original_target.copy()) * 1e5
-
-    # cv2.putText(im_h, str(cd), \
-    #     (720, 100), cv2.FONT_HERSHEY_PLAIN, 3, (0, 0, 255), 2)
-
-
-    
-    return im_h
+    return cv2.hconcat([canvas5])

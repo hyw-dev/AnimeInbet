@@ -83,14 +83,14 @@ class MixamoLineArt(data.Dataset):
         if action == 'None':
             action = None
 
-        self.is_train = True if mode == 'train' else False
-        self.is_eval = True if mode == 'eval' else False
+        self.is_train = mode == 'train'
+        self.is_eval = mode == 'eval'
         # self.is_train = False
         self.max_len = max_len
 
         self.image_list = []
         self.label_list = []
-        
+
         if use_vs:
             label_root = osp.join(root, split, 'labels_vs')
         else:
@@ -104,7 +104,7 @@ class MixamoLineArt(data.Dataset):
                 for mm in model:
                     if mm in clip:
                         skip = True
-                
+
             if action != None:
                 for aa in action:
                     if aa in clip:
@@ -132,10 +132,10 @@ class MixamoLineArt(data.Dataset):
         # spectral embedding
 
         # test does not need index matching
-        
+
         index = index % len(self.image_list)
         file_name = self.label_list[index][0][:-4]
-  
+
         img1 = cv2.imread(self.image_list[index][0])
         img2 = cv2.imread(self.image_list[index][1])
         v2d1, topo1, id1 = read_json(self.label_list[index][0])
@@ -146,7 +146,7 @@ class MixamoLineArt(data.Dataset):
         for ii in range(len(topo2)):
             topo2[ii].append(ii)
 
-    
+
         m, n = len(v2d1), len(v2d2)
 
         # img1, v2d1 = crop_img(img1, np.array(v2d1))
@@ -158,8 +158,8 @@ class MixamoLineArt(data.Dataset):
         else:
             img1 = img1[..., :3]
             img2 = img2[..., :3]
-        
-        img1 = torch.from_numpy(img1).permute(2, 0, 1).float() * 2 / 255.0 - 1.0 
+
+        img1 = torch.from_numpy(img1).permute(2, 0, 1).float() * 2 / 255.0 - 1.0
         img2 = torch.from_numpy(img2).permute(2, 0, 1).float() * 2 / 255.0 - 1.0
 
         v2d1 = torch.from_numpy(v2d1)
@@ -219,53 +219,29 @@ class MixamoLineArt(data.Dataset):
                 'mask1': mask1,
                 'file_name': file_name,
                 # 'with_match': True
-            } 
-        if not self.is_train:
-            return{
-                'keypoints0': v2d1,
-                'keypoints1': v2d2,
-                # 'topo0': topo1,
-                # 'topo1': topo2,
-                # 'id0': id1,
-                # 'id1': id2,
-                'adj_mat0': spec0,
-                'adj_mat1': spec1,
-                'image0': img1,
-                'image1': img2,
+            }
+        return{
+            'keypoints0': v2d1,
+            'keypoints1': v2d2,
+            # 'topo0': topo1,
+            # 'topo1': topo2,
+            # 'id0': id1,
+            # 'id1': id2,
+            'adj_mat0': spec0,
+            'adj_mat1': spec1,
+            'image0': img1,
+            'image1': img2,
 
-                'all_matches': corr1,
-                'm01': corr1,
-                'm10': corr2,
-                'ms': m,
-                'ns': n,
-                'mask0': mask0,
-                'mask1': mask1,
-                'file_name': file_name,
-                # 'with_match': True
-            } 
-        else:
-            return{
-                'keypoints0': v2d1,
-                'keypoints1': v2d2,
-                # 'topo0': topo1,
-                # 'topo1': topo2,
-                # 'id0': id1,
-                # 'id1': id2,
-                'adj_mat0': spec0,
-                'adj_mat1': spec1,
-                'image0': img1,
-                'image1': img2,
-
-                'all_matches': corr1,
-                'm01': corr1,
-                'm10': corr2,
-                'ms': m,
-                'ns': n,
-                'mask0': mask0,
-                'mask1': mask1,
-                'file_name': file_name,
-                # 'with_match': True
-            } 
+            'all_matches': corr1,
+            'm01': corr1,
+            'm10': corr2,
+            'ms': m,
+            'ns': n,
+            'mask0': mask0,
+            'mask1': mask1,
+            'file_name': file_name,
+            # 'with_match': True
+        } 
 
         
 

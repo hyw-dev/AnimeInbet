@@ -26,11 +26,11 @@ def make_inter_graph(v2d1, v2d2, topo1, topo2, match12):
     vh = 0.5 * (vin1 + vin2)
     vh = np.concatenate((vh, v2d1[np.invert(valid)], v2d2[np.invert(marked2)]), axis=0)
 
-    topoh = [[] for ii in range(tot_len)]
+    topoh = [[] for _ in range(tot_len)]
 
 
     for node in range(len(topo1)):
-        
+
         for nb in topo1[node]:
             if int(id1toh[nb]) not in topoh[id1toh[node]]:
                 topoh[id1toh[node]].append(int(id1toh[nb]))
@@ -68,7 +68,7 @@ def make_inter_graph_valid(v2d1, v2d2, topo1, topo2, match12):
     # vh = np.concatenate((vh, v2d1[np.invert(valid)], v2d2[np.invert(marked2)]), axis=0)
 
     # topoh = [[] for ii in range(tot_len)]
-    topoh = [[] for ii in range(np.sum(valid))]
+    topoh = [[] for _ in range(np.sum(valid))]
 
     for node in range(len(topo1)):
         if not valid[node]:
@@ -107,19 +107,19 @@ def visualize(dict):
     img2[:, :, 1] += 180
     img2[:, :, 2] += 180
     img2[img2 > 255] = 255
-    
+
     img1p[:, :, 0] += 255
     img1p[:, :, 1] += 180
     img1p[:, :, 2] += 180
     img1p[img1p > 255] = 255
-    
+
     img2p[:, :, 0] += 255
     img2p[:, :, 1] += 180
     img2p[:, :, 2] += 180
     img2p[img2p > 255] = 255
 
     img1, img2, img1p, img2p = img1.astype(np.uint8), img2.astype(np.uint8), img1p.astype(np.uint8), img2p.astype(np.uint8)
-    
+
 
     # print(v2d1.shape, img1.shape, flush=True)
     v2d1 = dict['keypoints0'].numpy().astype(int)
@@ -137,7 +137,7 @@ def visualize(dict):
     all_matches = dict['all_matches'].cpu().int().data.numpy()
     predicted = dict['matches0'].cpu().data.numpy()[0]
     predicted1 = dict['matches1'].cpu().data.numpy()[0]
-    
+
     colors1_gt, colors2_gt = {}, {}
     colors1_pred, colors2_pred = {}, {}
     cross1_pred, cross2_pred = {}, {}
@@ -162,7 +162,7 @@ def visualize(dict):
             cross1_pred[index] = True
             if predicted[index] != -1:
                 cross2_pred[predicted[index]] = True
-        
+
     for i, p in enumerate(v2d1):
         ii = id1[i]
         # print(ii)
@@ -171,13 +171,13 @@ def visualize(dict):
             cv2.rectangle(img1p, [int(p[0]-1), int(p[1]-1)], [int(p[0]+1), int(p[1]+1)], colors1_pred[i],-1)
         else:
             cv2.circle(img1p, [int(p[0]), int(p[1])], 1, colors1_pred[i], 2)
-        
+
+    this_is_umatched = 1
     for ii in id2:
         # print(ii)
         color = [0, 0, 0]
-        this_is_umatched = 1
         if ii not in colors2_gt:
-            colors2_gt[ii] = color  
+            colors2_gt[ii] = color
         if ii not in colors2_pred:
             colors2_pred[ii] = color
 
@@ -217,33 +217,31 @@ def visualize(dict):
     for node, nbs in enumerate(topoh_gt):
         for nb in nbs:
             cv2.line(imgh, [vh_gt[node][0], vh_gt[node][1]], [vh_gt[nb][0], vh_gt[nb][1]], [0, 0, 0], 2)
-    
+
     for node, nbs in enumerate(topoh_pred):
         for nb in nbs:
             cv2.line(imghp, [vh_pred[node][0], vh_pred[node][1]], [vh_pred[nb][0], vh_pred[nb][1]], [0, 0, 0], 2)
-    
+
     for node, nbs in enumerate(topoh_gt_valid):
         for nb in nbs:
             cv2.line(imgh_valid, [vh_gt_valid[node][0], vh_gt_valid[node][1]], [vh_gt_valid[nb][0], vh_gt_valid[nb][1]], [0, 0, 0], 2)
-    
+
     for node, nbs in enumerate(topoh_pred_valid):
         for nb in nbs:
             cv2.line(imghp_valid, [vh_pred_valid[node][0], vh_pred_valid[node][1]], [vh_pred_valid[nb][0], vh_pred_valid[nb][1]], [0, 0, 0], 2)
-    
+
     # for node, nbs in enumerate(topo1):
     #     for nb in nbs:
     #         cv2.line(imghp_valid, [v2d1t[node][0], v2d1t[node][1]], [v2d1t[nb][0], v2d1t[nb][1]], [0, 0, 0], 2)
-    
+
     # for node, nbs in enumerate(topo2):
     #     for nb in nbs:
     #         cv2.line(imghp_valid, [v2d2t[node][0], v2d2t[node][1]], [v2d2t[nb][0], v2d2t[nb][1]], [0, 0, 0], 2)
-    
+
 
 
     im_h = cv2.hconcat([img1, img2])
     im_hp = cv2.hconcat([img1p, img2p])
     img_inter = cv2.hconcat([imgh, imghp])
     img_inter_valid = cv2.hconcat([imgh_valid, imghp_valid])
-    im_hv = cv2.vconcat([im_h, im_hp, img_inter, img_inter_valid])
-
-    return im_hv
+    return cv2.vconcat([im_h, im_hp, img_inter, img_inter_valid])

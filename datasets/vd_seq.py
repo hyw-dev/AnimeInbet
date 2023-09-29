@@ -114,7 +114,7 @@ class VideoLinSeq(data.Dataset):
             img1 = img1[..., :3]
             img2 = img2[..., :3]
 
-        img1 = torch.from_numpy(img1).permute(2, 0, 1).float() * 2 / 255.0 - 1.0 
+        img1 = torch.from_numpy(img1).permute(2, 0, 1).float() * 2 / 255.0 - 1.0
         img2 = torch.from_numpy(img2).permute(2, 0, 1).float() * 2 / 255.0 - 1.0
 
         v2d1 = torch.from_numpy(v2d1)
@@ -127,11 +127,11 @@ class VideoLinSeq(data.Dataset):
         v2d2[v2d2 > imgt[0].shape[1] - 1] = imgt[0].shape[1] - 1
         v2d2[v2d2 < 0] = 0
 
-     
+
         id1 = np.arange(len(v2d1))
         id2 = np.arange(len(v2d2))
 
-       
+
         for ii in range(len(topo1)):
             topo1[ii].append(ii)
         for ii in range(len(topo2)):
@@ -142,7 +142,7 @@ class VideoLinSeq(data.Dataset):
         try:
             spec0, spec1 = np.abs(self.spectral.fit_transform(adj1)), np.abs(self.spectral.fit_transform(adj2))
         except:
-            print('>>>>' + file_name, flush=True)
+            print(f'>>>>{file_name}', flush=True)
             spec0, spec1 = np.zeros((len(adj1), 64)), np.zeros((len(adj2), 64))
 
         return{
@@ -182,8 +182,12 @@ def worker_init_fn(worker_id):
 
 def fetch_videoloader(args, type='train',):
     lineart = VideoLinSeq(root=args.root, split=args.type, )
-    
-    loader = data.DataLoader(lineart, batch_size=args.batch_size, 
-            pin_memory=True, shuffle=False, num_workers=8)
-    return loader
+
+    return data.DataLoader(
+        lineart,
+        batch_size=args.batch_size,
+        pin_memory=True,
+        shuffle=False,
+        num_workers=8,
+    )
 
